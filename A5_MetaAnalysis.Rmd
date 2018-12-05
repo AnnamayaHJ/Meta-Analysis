@@ -10,8 +10,8 @@ getwd()
 library(pacman)
 p_load(tidyverse, ggplot2, groupdata2, crqa, gridExtra, gdata, lmerTest, lme4, metafor)
 current = getwd()
-detach(package:plyr)
-library(dplyr)
+#detach(package:plyr)
+#library(dplyr)
 ```
 
 
@@ -105,6 +105,7 @@ ranktest(model_var_1)
 
 ```{r}
 #Attempting to include our study
+data_ass3 <- read.csv("data_with_demo.csv")
 diagnosis <- c("Control", "Control", "Control", "Schizophrenia", "Schizophrenia", "Schizophrenia")
 study <- c(1, 2, 3, 1, 2, 3)
 diag_stud <- as.data.frame(diagnosis)
@@ -116,6 +117,7 @@ model_sd_ass3 <- lmer(sd ~ diagnosis + (1 | ID) + (1 | trial) + (1 | study), dat
 predict(model_mean_ass3, newdata = diag_stud, re.form = ~(1 | study), allow.new.levels = T)
 predict(model_sd_ass3, newdata = diag_stud, re.form = ~(1 | study), allow.new.levels = T)
 
+#counting sample sizes 
 data_ass3 %>% 
   filter(diagnosis == "Control" & study == 1) %>%
   nrow()
@@ -148,17 +150,82 @@ data_ass3 %>%
 
 ```
 
-
 - Go back to Assignment 3, add your own study to the data table, and re-run meta-analysis. Do the results change?
 
 ```{r}
+#Adding values to a dataframe with similar columns
+listoflists <- list(StudyID = c(49, 50, 51), ArticleID = 47, SAMPLE_SIZE_SZ = c(335, 182, 158),
+SAMPLE_SIZE_HC = c(352, 184, 128), PITCH_F0_HC_M = c(142.4939, 123.8641, 137.0162), PITCH_F0_HC_SD = c(24.72409, 27.32127, 25.47117), PITCH_F0_SZ_M = c(156.2813, 137.6516, 150.8036), PITCH_F0_SZ_SD = c(24.72409, 27.32127, 25.47117))
 
+ass3 <- as.data.frame(listoflists)
+
+ass3$ACOUST_ANA_DESCR = NA
+ass3$DESCRIPTION = NA
+ass3$COMMENTS = NA
+ass3$frequency = NA
+ass3$Title = NA
+ass3$Authors = NA
+ass3$Article = NA
+ass3$Year_publication = NA
+ass3$PITCH_F0SD_HC_M = NA
+ass3$PITCH_F0SD_HC_SD = NA
+ass3$PITCH_F0SD_SZ_M = NA
+ass3$PITCH_F0SD_SZ_SD = NA
+ass3$pitch_f0_variability = NA 
+
+# as.factor(ass3$ACOUST_ANA_DESCR)
+# as.factor(ass3$DESCRIPTION)
+# as.factor(ass3$COMMENTS)
+# as.factor(ass3$frequency)
+# as.factor(ass3$Title)
+# as.factor(ass3$Authors)
+# as.factor(ass3$Article)
+
+data_all <- rbind(data_clean, ass3)
 ```
 
 - Now look at the output of rma() and check tau and I2
 
 ```{r}
-data_clean$ACOUST_ANA_DESCR
+#Cohens D for mean
+pitch_mean_all = escalc('SMD', n1i=SAMPLE_SIZE_SZ, n2i=SAMPLE_SIZE_HC, m1i=PITCH_F0_SZ_M, m2i=PITCH_F0_HC_M, sd1i=PITCH_F0_SZ_SD, sd2i=PITCH_F0_HC_SD, data = data_all)
+
+pitch_var_all = escalc('SMD', n1i=SAMPLE_SIZE_SZ, n2i=SAMPLE_SIZE_HC, m1i=PITCH_F0SD_SZ_M, m2i=PITCH_F0SD_HC_M, sd1i=PITCH_F0SD_SZ_SD, sd2i=PITCH_F0SD_HC_SD, data = data_all)
+
+# Mixed effects model 
+model_mean_all <- lmer(yi ~ 1 + (1 | StudyID), weights = 1/vi, data= pitch_mean_all, control=lmerControl(check.nobs.vs.nlev="ignore", check.nobs.vs.nRE="ignore"))
+
+summary(model_mean_all)
+
+model_var_all <- lmer(yi ~ 1 + (1 | StudyID), weights = 1/vi, data= pitch_var_all, control=lmerControl(check.nobs.vs.nlev="ignore", check.nobs.vs.nRE="ignore"))
+
+summary(model_var_all)
+
+# Meta-analysis optimisation
+model_mean_2 <- rma(yi, vi, data = pitch_mean_all, slab=StudyID)
+model_mean_2
+forest(model_mean_2)
+
+model_var_2 <- rma(yi, vi, data = pitch_var_all, slab=StudyID)
+model_var_2
+forest(model_var_2)
+
+inf_mean_all <- influence(model_mean_2)
+print(inf_mean_all)
+plot(inf_mean_all)
+
+inf_var_all <- influence(model_var_2)
+print(inf_var_all)
+plot(inf_var_all)
+
+funnel_mean_all <- funnel(model_mean_2, main = "Random-Effects Model", xlab = "Standardized Mean Difference")
+funnel_var_all = funnel(model_var_2, main = "Random-Effects Model", xlab = "Standardized Mean Difference")
+
+regtest(model_mean_2)
+ranktest(model_mean_2)
+
+regtest(model_var_2)
+ranktest(model_var_2)
 ```
 
 ## Questions to be answered
