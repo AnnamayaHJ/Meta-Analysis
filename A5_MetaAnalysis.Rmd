@@ -31,11 +31,6 @@ data_clean <- data[!with(data,is.na(PITCH_F0_SZ_SD) & is.na(PITCH_F0SD_SZ_SD)),]
 
 - Look through the dataset to find out which columns to use, and if there is any additional information written as comments (real world data is always messy!).
     * Hint: Make sure you read the comments in the columns: `pitch_f0_variability`, `frequency`, `Title`,  `ACOUST_ANA_DESCR`, `DESCRIPTION`, and `COMMENTS`.
-
-```{r}
-
-```
-
 - Following the procedure in the slides calculate effect size and standard error of the effect size per each study. N.B. we focus on pitch mean and pitch standard deviation.
  . first try using lmer (to connect to what you know of mixed effects models)
  . then use rma() (to get some juicy additional statistics)
@@ -100,6 +95,12 @@ regtest(model_var_1)
 #Rank Correlation Test for funnel plot asymmetry ***** (preferred)
 ranktest(model_mean_1)
 ranktest(model_var_1)
+
+confint(model_mean_1)
+confint(model_var_1)
+
+summary(model_mean_1)
+summary(model_var_1)
 ```
 
 
@@ -117,60 +118,91 @@ model_sd_ass3 <- lmer(sd ~ diagnosis + (1 | ID) + (1 | trial) + (1 | study), dat
 predict(model_mean_ass3, newdata = diag_stud, re.form = ~(1 | study), allow.new.levels = T)
 predict(model_sd_ass3, newdata = diag_stud, re.form = ~(1 | study), allow.new.levels = T)
 
-#counting sample sizes 
+sd_mean <- data_ass3 %>% 
+   dplyr::group_by(diagnosis, study) %>%
+   dplyr::summarise(sd = sd(mean))
+
+sd_sd <- data_ass3 %>% 
+   dplyr::group_by(diagnosis, study) %>%
+   dplyr::summarise(sd = sd(sd))
+
+#counting sample sizes of old data
 data_ass3 %>% 
+  group_by(ID) %>%
   filter(diagnosis == "Control" & study == 1) %>%
+  summarise() %>%
   nrow()
-#[1] 352
+#[1] 36
 
 data_ass3 %>% 
+  group_by(ID) %>%
   filter(diagnosis == "Schizophrenia" & study == 1) %>%
+  summarise() %>%
   nrow()
-#[1] 335
+#[1] 34
 
 data_ass3 %>% 
+  group_by(ID) %>%
   filter(diagnosis == "Control" & study == 2) %>%
+  summarise() %>%
   nrow()
-#[1] 184
+#[1] 23
 
 data_ass3 %>% 
+  group_by(ID) %>%
   filter(diagnosis == "Schizophrenia" & study == 2) %>%
+  summarise() %>%
   nrow()
-#[1] 182
+#[1] 23
 
 data_ass3 %>% 
+  group_by(ID) %>%
   filter(diagnosis == "Control" & study == 4) %>%
+  summarise() %>%
   nrow()
-#[1] 128
+#[1] 16
 
 data_ass3 %>% 
+  group_by(ID) %>%
   filter(diagnosis == "Schizophrenia" & study == 4) %>%
+  summarise() %>%
   nrow()
-#[1] 158
+#[1] 19
 
 ```
 
 - Go back to Assignment 3, add your own study to the data table, and re-run meta-analysis. Do the results change?
 
+
 ```{r}
 #Adding values to a dataframe with similar columns
-listoflists <- list(StudyID = c(49, 50, 51), ArticleID = 47, SAMPLE_SIZE_SZ = c(335, 182, 158),
-SAMPLE_SIZE_HC = c(352, 184, 128), PITCH_F0_HC_M = c(142.4939, 123.8641, 137.0162), PITCH_F0_HC_SD = c(24.72409, 27.32127, 25.47117), PITCH_F0_SZ_M = c(156.2813, 137.6516, 150.8036), PITCH_F0_SZ_SD = c(24.72409, 27.32127, 25.47117))
+listoflists <- list(StudyID = c(49, 50, 51), 
+                    ArticleID = 47, 
+                    SAMPLE_SIZE_HC = c(36, 23, 16), 
+                    SAMPLE_SIZE_SZ = c(34, 23, 19),
+                    
+                    PITCH_F0_HC_M = c(142.4939, 123.8641, 137.0162),
+                    PITCH_F0_SZ_M = c(156.2813, 137.6516, 150.8036), 
+                    
+                    PITCH_F0_HC_SD = c(51.03645, 34.76154, 46.62267),
+                    PITCH_F0_SZ_SD = c(54.74809, 60.50305, 46.65587),
+                    
+                    PITCH_F0SD_HC_M = c(24.72409, 27.32127, 25.47117),
+                    PITCH_F0SD_SZ_M = c(22.07029, 24.66747, 22.81737),
+                    
+                    PITCH_F0SD_HC_SD = c(15.79852, 20.48901, 21.31672),
+                    PITCH_F0SD_SZ_SD = c(29.54196, 47.36456, 12.57604))
 
 ass3 <- as.data.frame(listoflists)
 
 ass3$ACOUST_ANA_DESCR = NA
 ass3$DESCRIPTION = NA
-ass3$COMMENTS = NA
+ass3$COMMENTS = "At least we tried :i"
 ass3$frequency = NA
-ass3$Title = NA
-ass3$Authors = NA
+ass3$Title = "Diagnosis On Basis of Pitch"
+ass3$Authors = c("Halskov-Jensen et al.", "Masterchefsdottir et al.", "Pseudojacobsen et al.")
 ass3$Article = NA
-ass3$Year_publication = NA
-ass3$PITCH_F0SD_HC_M = NA
-ass3$PITCH_F0SD_HC_SD = NA
-ass3$PITCH_F0SD_SZ_M = NA
-ass3$PITCH_F0SD_SZ_SD = NA
+ass3$Year_publication = "2018"
 ass3$pitch_f0_variability = NA 
 
 # as.factor(ass3$ACOUST_ANA_DESCR)
@@ -194,20 +226,18 @@ pitch_var_all = escalc('SMD', n1i=SAMPLE_SIZE_SZ, n2i=SAMPLE_SIZE_HC, m1i=PITCH_
 
 # Mixed effects model 
 model_mean_all <- lmer(yi ~ 1 + (1 | StudyID), weights = 1/vi, data= pitch_mean_all, control=lmerControl(check.nobs.vs.nlev="ignore", check.nobs.vs.nRE="ignore"))
-
 summary(model_mean_all)
 
 model_var_all <- lmer(yi ~ 1 + (1 | StudyID), weights = 1/vi, data= pitch_var_all, control=lmerControl(check.nobs.vs.nlev="ignore", check.nobs.vs.nRE="ignore"))
-
 summary(model_var_all)
 
 # Meta-analysis optimisation
 model_mean_2 <- rma(yi, vi, data = pitch_mean_all, slab=StudyID)
-model_mean_2
+summary(model_mean_2)
 forest(model_mean_2)
 
 model_var_2 <- rma(yi, vi, data = pitch_var_all, slab=StudyID)
-model_var_2
+summary(model_var_2)
 forest(model_var_2)
 
 inf_mean_all <- influence(model_mean_2)
@@ -223,9 +253,14 @@ funnel_var_all = funnel(model_var_2, main = "Random-Effects Model", xlab = "Stan
 
 regtest(model_mean_2)
 ranktest(model_mean_2)
+ranktest(model_mean_1)
 
 regtest(model_var_2)
 ranktest(model_var_2)
+ranktest(model_var_1)
+
+confint(model_mean_2, level = .95)
+confint(model_var_2, level = .95)
 ```
 
 
