@@ -228,6 +228,19 @@ regtest(model_var_2)
 ranktest(model_var_2)
 ```
 
+
+```{r}
+#Plots with exclusion of study 15
+test_var <- pitch_var_all[!pitch_var_all$StudyID == 15,]
+
+model_var_3 <- rma(yi, vi, data = test_var, slab=StudyID)
+model_var_3
+
+forest(model_var_3)
+funnel_var_all_v2 = funnel(model_var_3, main = "Random-Effects Model", xlab = "Standardized Mean Difference")
+```
+
+
 ## Questions to be answered
 
 1. What is the current evidence for distinctive patterns of pitch mean and pitch sd in schizophrenia? Report how many papers report quantitative estimates, your method to analyze them, the estimated effect size of the difference (mean effect size and standard error for pitch mean, same for pitch sd) and forest plots representing it.
